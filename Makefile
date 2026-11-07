@@ -3,7 +3,7 @@ include config.mk
 export SUITE MIRROR HOSTNAME TIMEZONE ARCH IMAGE_SIZE BOOT_SIZE BOOT_UUID ROOT_UUID KERNEL_CMDLINE IMAGE
 export PATH := $(PATH):/usr/sbin:/sbin
 
-.PHONY: all prereq prereq-check image rootfs check qemu test ssh flash clean FORCE
+.PHONY: all prereq prereq-check image base rootfs check qemu test ssh flash clean FORCE
 all: image
 
 prereq:
@@ -14,16 +14,26 @@ prereq-check:
 	[ -z "$$missing" ] || { echo "missing host tools:$$missing -- run 'make prereq'" >&2; exit 1; }; \
 	grep -q "^$$(id -un):" /etc/subuid /etc/subgid 2>/dev/null || { echo "no subuid/subgid range -- run 'make prereq'" >&2; exit 1; }
 
-# Re-hash all build inputs; only touch the stamp if they changed.
-build/inputs.sha: FORCE
-	@mkdir -p build
-	@{ cat config.mk packages.txt scripts/build-rootfs.sh scripts/customize.sh scripts/mkimage.sh; \
-	   find overlay private local -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum; } | sha256sum > $@.new
-	@cmp -s $@.new $@ && rm $@.new || mv $@.new $@
+# Two cached stages, each rebuilt only when the hash of its inputs changes:
+#   base.tar   packages (slow): suite/mirror/arch/cmdline, package lists, base scripts
+#   rootfs.tar base + customize.sh (fast): config, overlay/, private/, local/
+# $(call stamp,FILE,COMMANDS): write the sha256 of COMMANDS' output to FILE only if it changed
+stamp = @mkdir -p build; { $(2); } | sha256sum > $(1).new; cmp -s $(1).new $(1) && rm $(1).new || mv $(1).new $(1)
+
+build/base.sha: FORCE
+	$(call stamp,$@,echo '$(SUITE) $(MIRROR) $(ARCH) $(KERNEL_CMDLINE)'; \
+	  cat packages.txt $(wildcard local/packages.txt) scripts/build-base.sh scripts/base-hooks.sh)
+build/rootfs.sha: FORCE
+	$(call stamp,$@,cat config.mk scripts/build-rootfs.sh scripts/customize.sh; \
+	  find overlay private local -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum)
+
+base: build/base.tar
+build/base.tar: build/base.sha | prereq-check
+	scripts/build-base.sh $@
 
 rootfs: build/rootfs.tar
-build/rootfs.tar: build/inputs.sha | prereq-check
-	scripts/build-rootfs.sh $@
+build/rootfs.tar: build/base.tar build/rootfs.sha | prereq-check
+	scripts/build-rootfs.sh build/base.tar $@
 
 image: $(IMAGE)
 $(IMAGE): build/rootfs.tar scripts/mkimage.sh | prereq-check
