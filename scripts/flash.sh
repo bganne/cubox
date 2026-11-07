@@ -14,5 +14,6 @@ case $name in
 esac
 printf 'Write %s to %s (ALL DATA LOST)? [y/N] ' "$img" "$dev"
 read -r a; [ "$a" = y ] || exit 1
-dd if="$img" of="$dev" bs=4M conv=fsync status=progress
+# O_DIRECT bypasses the page cache so the progress reflects what reached the card
+dd if="$img" of="$dev" bs=4M oflag=direct conv=fsync status=progress
 sync
