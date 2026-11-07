@@ -1,0 +1,16 @@
+# One package per line (comments allowed)
+linux-image-armmp
+flash-kernel
+u-boot-tools
+initramfs-tools
+f2fs-tools
+ifupdown
+dhcpcd-base
+systemd-timesyncd
+openssh-server
+locales
+tzdata
+vim
+less
+fdisk
+firmware-linux-free
