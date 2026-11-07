@@ -49,12 +49,15 @@ fi
 
 chk "boot.scr has root=UUID=$ROOT_UUID" grep -aq "root=UUID=$ROOT_UUID" "$work/boot.scr"
 chk "boot.scr has net.ifnames=0" grep -aq 'net.ifnames=0' "$work/boot.scr"
-# root on SD (CuBox: sdhci-dove + mmc_block) and on virtio in qemu: a near-empty initrd must fail here
-for m in f2fs sdhci-dove mmc_block virtio_blk; do
+# root on SD (CuBox: sdhci-dove + deps; mmc_block/mmc_core are built into armmp) and on virtio in qemu.
+# A near-empty initrd must fail here.
+for m in f2fs sdhci-dove sdhci-pltfm sdhci virtio_blk; do
     chk "initramfs has $m.ko" sh -c "lsinitramfs '$work/initrd' | grep -q '/$m\.ko'"
 done
 
 # Rootfs content (from the tarball)
+# overlays must not leak the (unmapped) build user as nobody (65534) into the image
+chk "no files owned by nobody" sh -c "! tar -tvf '$tar' | awk '\$2 ~ /^65534\\// {print; f=1} END {exit !f}'"
 for f in etc/fstab etc/flash-kernel/machine; do
     chk "rootfs has $f" sh -c "tar -tf '$tar' | grep -qx './$f'"
 done

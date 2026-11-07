@@ -17,8 +17,12 @@ essential)
     ;;
 customize)
     # Overlays: committed first, then local/ (optional), then secrets (optional)
-    cp -a overlay/. "$root"/
-    [ ! -d local/overlay ] || cp -a local/overlay/. "$root"/
+    # Not cp -a: the build user is unmapped in this namespace, so preserving ownership would make
+    # the files (and /, /etc, ... via the overlay's dirs) owned by nobody. New files get root:root;
+    # existing directories keep their owner and mode.
+    ovl() { tar -C "$1" --owner=0 --group=0 --numeric-owner -c . | tar -C "$root" --no-overwrite-dir -x; }
+    ovl overlay
+    [ ! -d local/overlay ] || ovl local/overlay
     # private/ is not readable by the hook's namespace uid; build-rootfs.sh passes it as PRIVATE_TAR
     ptar() { printf %s "$PRIVATE_TAR" | base64 -d | tar "$@"; }
     if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
