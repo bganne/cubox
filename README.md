@@ -26,7 +26,7 @@ separate branch rebased onto master. All files are optional:
 - `local/config.mk` overrides `config.mk` (HOSTNAME, IMAGE_SIZE, TIMEZONE, KERNEL_CMDLINE, ...)
 - `local/packages.txt` extra packages
 - `local/overlay/` copied over `overlay/` (before `private/`)
-- `local/customize.sh` sourced at the end of the customize stage (`$root` = rootfs)
+- `local/customize.sh` sourced at the end of the customize stage (scripts/customize.sh) (`$root` = rootfs)
 - `local/check.sh` sourced by `scripts/check.sh` (`chk`, `bad`, `ok`, `$tar`)
 - `local/qemu-test.sh` sourced by `scripts/qemu-test.sh`: may set `QEMU_NIC`, `EXPECTED_FAILED_RE`
   and define `local_tests` (uses `r`, `pass`, `bad`)
