@@ -49,7 +49,10 @@ fi
 
 chk "boot.scr has root=UUID=$ROOT_UUID" grep -aq "root=UUID=$ROOT_UUID" "$work/boot.scr"
 chk "boot.scr has net.ifnames=0" grep -aq 'net.ifnames=0' "$work/boot.scr"
-chk "initramfs has f2fs.ko" sh -c "lsinitramfs '$work/initrd' | grep -q 'f2fs\.ko'"
+# root on SD (CuBox: sdhci-dove + mmc_block) and on virtio in qemu: a near-empty initrd must fail here
+for m in f2fs sdhci-dove mmc_block virtio_blk; do
+    chk "initramfs has $m.ko" sh -c "lsinitramfs '$work/initrd' | grep -q '/$m\.ko'"
+done
 
 # Rootfs content (from the tarball)
 for f in etc/fstab etc/flash-kernel/machine; do

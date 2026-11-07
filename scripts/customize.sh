@@ -1,64 +1,71 @@
 #!/bin/sh
-# Stage-2 customization (run by finish-rootfs.sh on the host as namespace root).
-# usage: customize.sh ROOTFS
+# mmdebstrap hooks, run on the host as namespace root; $2 = rootfs.
+# usage: customize.sh essential|customize ROOTFS
 set -eu
-root=$1
+stage=$1
+root=$2
 
-# Overlays: committed first, then local/ (optional), then secrets (optional)
-cp -a overlay/. "$root"/
-[ ! -d local/overlay ] || cp -a local/overlay/. "$root"/
-# private/ is passed as PRIVATE_TAR (set by finish-rootfs.sh)
-ptar() { printf %s "$PRIVATE_TAR" | base64 -d | tar "$@"; }
-if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
-    ptar -x --no-same-owner --no-same-permissions -C "$root" ./etc
-fi
-rm -f "$root/etc/apt/sources.list"
+case $stage in
+essential)
+    # Must be in place before the kernel is installed so flash-kernel's hooks work in the chroot
+    mkdir -p "$root/etc/flash-kernel"
+    echo "SolidRun CuBox" > "$root/etc/flash-kernel/machine"
+    # the build host may be EFI; this makes flash-kernel skip otherwise
+    echo yes > "$root/etc/flash-kernel/ignore-efi"
+    echo "flash-kernel flash-kernel/linux_cmdline string $KERNEL_CMDLINE" |
+        chroot "$root" debconf-set-selections
+    ;;
+customize)
+    # Overlays: committed first, then local/ (optional), then secrets (optional)
+    cp -a overlay/. "$root"/
+    [ ! -d local/overlay ] || cp -a local/overlay/. "$root"/
+    # private/ is not readable by the hook's namespace uid; build-rootfs.sh passes it as PRIVATE_TAR
+    ptar() { printf %s "$PRIVATE_TAR" | base64 -d | tar "$@"; }
+    if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
+        ptar -x --no-same-owner --no-same-permissions -C "$root" ./etc
+    fi
+    rm -f "$root/etc/apt/sources.list"
 
-cat > "$root/etc/fstab" <<EOT
+    cat > "$root/etc/fstab" <<EOT
 UUID=$ROOT_UUID	/	f2fs	defaults	0	1
 UUID=$BOOT_UUID	/boot	ext4	defaults	0	2
 EOT
-if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -qx './root.hash'; then
-    chroot "$root" usermod -p "$(ptar -xO ./root.hash)" root
-else
-    echo "WARNING: private/root.hash missing, root password left unchanged" >&2
-fi
-for k in "$root"/etc/ssh/ssh_host_*_key; do [ ! -e "$k" ] || chmod 600 "$k"; done
+    if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -qx './root.hash'; then
+        chroot "$root" usermod -p "$(ptar -xO ./root.hash)" root
+    else
+        echo "WARNING: private/root.hash missing, root password left unchanged" >&2
+    fi
+    for k in "$root"/etc/ssh/ssh_host_*_key; do [ ! -e "$k" ] || chmod 600 "$k"; done
 
-echo "$HOSTNAME" > "$root/etc/hostname"
-chroot "$root" systemctl enable serial-getty@ttyS0.service
+    echo "$HOSTNAME" > "$root/etc/hostname"
+    chroot "$root" systemctl enable serial-getty@ttyS0.service
 
-# Locale and timezone
-sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' "$root/etc/locale.gen"
-chroot "$root" locale-gen
-echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
-echo "$TIMEZONE" > "$root/etc/timezone"
-ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$root/etc/localtime"
+    # Locale and timezone
+    sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' "$root/etc/locale.gen"
+    chroot "$root" locale-gen
+    echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
+    echo "$TIMEZONE" > "$root/etc/timezone"
+    ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$root/etc/localtime"
 
-# Optional local hook (see local/ in CLAUDE.md); sourced with $root available
-# shellcheck disable=SC1091
-[ ! -f local/customize.sh ] || . ./local/customize.sh
+    # Optional local hook (see local/ in CLAUDE.md); sourced with $root available
+    # shellcheck disable=SC1091
+    [ ! -f local/customize.sh ] || . ./local/customize.sh
 
-# Make sure the kernel cmdline survived debconf, then (re)generate initrd + U-Boot files
-if grep -q '^LINUX_KERNEL_CMDLINE=' "$root/etc/default/flash-kernel"; then
-    sed -i "s|^LINUX_KERNEL_CMDLINE=.*|LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"|" "$root/etc/default/flash-kernel"
-else
-    echo "LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"" >> "$root/etc/default/flash-kernel"
-fi
-# Drop the no-op stubs that scripts/essential.sh diverted in, so the installed system is normal
-for cmd in /usr/sbin/update-initramfs /usr/sbin/flash-kernel; do
-    rm -f "$root$cmd"
-    chroot "$root" dpkg-divert --local --rename --remove "$cmd"
-done
-for d in "$root"/lib/modules/*/; do
-    v=$(basename "$d")
-    if [ -e "$root/boot/initrd.img-$v" ]; then m=-u; else m=-c; fi
-    chroot "$root" update-initramfs $m -k "$v"
-done
-# flash-kernel runs from /etc/initramfs/post-update.d/flash-kernel after each update-initramfs
+    # Make sure the kernel cmdline survived debconf, then (re)generate initrd + U-Boot files
+    if grep -q '^LINUX_KERNEL_CMDLINE=' "$root/etc/default/flash-kernel"; then
+        sed -i "s|^LINUX_KERNEL_CMDLINE=.*|LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"|" "$root/etc/default/flash-kernel"
+    else
+        echo "LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"" >> "$root/etc/default/flash-kernel"
+    fi
+    chroot "$root" update-initramfs -u -k all
+    chroot "$root" flash-kernel
 
-# Cleanup; machine-id is regenerated on first boot
-chroot "$root" apt-get clean
-rm -rf "$root"/var/lib/apt/lists/*
-: > "$root/etc/machine-id"
-rm -f "$root/var/lib/dbus/machine-id"
+    # Cleanup; machine-id is regenerated on first boot
+    chroot "$root" apt-get clean
+    rm -rf "$root"/var/lib/apt/lists/*
+    : > "$root/etc/machine-id"
+    rm -f "$root/var/lib/dbus/machine-id"
+    ;;
+*)
+    echo "unknown stage $stage" >&2; exit 1 ;;
+esac

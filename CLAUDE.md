@@ -11,12 +11,9 @@ settings in master files; extend the `local/` hooks instead.
 ## Layout
 - `Makefile`, `config.mk` (suite, mirror, sizes, fixed BOOT/ROOT UUIDs, TIMEZONE, kernel cmdline, HOST_PACKAGES/HOST_TOOLS)
 - `packages.txt` one package per line
-- Stage 1 (slow): `scripts/build-rootfs.sh` mmdebstrap (unshare mode, armhf via qemu-user, eatmydata hook, no docs,
-  .deb cache in build/apt-cache) -> build/base.tar; `scripts/essential.sh` is its essential hook (flash-kernel config,
-  diverts update-initramfs/flash-kernel to no-op stubs during package install)
-- Stage 2 (fast): `scripts/finish-rootfs.sh` unpacks base.tar in a userns+chroot (fresh proc, tmpfs /dev with 6 nodes; host /dev,/sys never bound), runs
-  `scripts/customize.sh ROOT` (overlays, fstab, passwords, locale, local hook, removes stubs, update-initramfs + flash-kernel
-  once, cleanup), repacks -> build/rootfs.tar
+- `scripts/build-rootfs.sh` mmdebstrap (unshare mode, armhf via qemu-user, eatmydata hook, no docs/man,
+  .deb cache in build/apt-cache) -> build/rootfs.tar
+- `scripts/customize.sh` mmdebstrap essential/customize hooks (overlay, fstab, passwords, initramfs, flash-kernel)
 - `scripts/mkimage.sh` run under `unshare --map-auto --map-root-user`: partitions + mke2fs/mkfs.f2fs/sload.f2fs
 - `scripts/check.sh` static image checks; `scripts/prereq.sh`; `scripts/flash.sh`
 - `scripts/qemu-test.sh run|test|ssh`: qemu virt boot of a qcow2 overlay (build/qemu/), ssh via systemd credential key
@@ -43,6 +40,5 @@ Build is rootless; only prereq and flash need root.
 ## Notes
 - Config vars are exported by the Makefile to scripts; scripts read them from the environment.
 - `net.ifnames=0` keeps the NIC `eth0`. Default qemu test net is user-mode (guest DHCP 10.0.2.15, ssh via host port 2222).
-- build/base.tar rebuilds only when build/base-inputs.sha (SUITE/MIRROR/ARCH/KERNEL_CMDLINE, packages lists, build-rootfs.sh,
-  essential.sh) changes; build/rootfs.tar when build/inputs.sha (config, packages, scripts, overlay, private, local) changes,
-  so overlay/local/private/customize.sh edits skip mmdebstrap. `make clean` also drops build/apt-cache.
+- build/rootfs.tar rebuilds when build/inputs.sha (hash of config, packages, scripts, overlay, private, local) changes.
+  `make clean` also drops build/apt-cache. check.sh verifies the initramfs has the SD (sdhci-dove, mmc_block) and virtio drivers.
