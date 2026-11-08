@@ -58,7 +58,7 @@ done
 # Rootfs content (from the tarball)
 # overlays must not leak the (unmapped) build user as nobody (65534) into the image
 chk "no files owned by nobody" sh -c "! tar -tvf '$tar' | awk '\$2 ~ /^65534\\// {print; f=1} END {exit !f}'"
-for f in etc/fstab etc/flash-kernel/machine etc/apt/apt.conf.d/20auto-upgrades usr/bin/unattended-upgrade; do
+for f in etc/fstab etc/flash-kernel/machine etc/apt/apt.conf.d/20auto-upgrades usr/bin/unattended-upgrade usr/lib/systemd/system-shutdown/cubox-gpu-power etc/systemd/system.conf.d/watchdog.conf; do
     chk "rootfs has $f" sh -c "tar -tf '$tar' | grep -qx './$f'"
 done
 for k in private/etc/ssh/ssh_host_*_key; do
