@@ -1,0 +1,8 @@
+#!/bin/sh
+# CuBox: the 2013 U-Boot hangs at "Setting GPU power ON." after a warm reset if Linux left the
+# GPU power domain off (etnaviv runtime-suspends it). Power it back on just before rebooting.
+# $1 = halt|poweroff|reboot|kexec
+[ "$1" = reboot ] || exit 0
+f=/sys/bus/platform/devices/f1840000.gpu/power/control
+[ -w "$f" ] && echo on > "$f"
+exit 0
