@@ -82,6 +82,9 @@ fi
 ip=$(r 'ip -4 -o addr show eth0' || true)
 [ -n "$ip" ] && pass "eth0 has an address: $(echo "$ip" | awk '{print $4}')" || bad "eth0 has no IPv4 address"
 
+r 'systemctl is-enabled apt-daily-upgrade.timer' >/dev/null 2>&1 && pass "apt-daily-upgrade.timer enabled" || bad "apt-daily-upgrade.timer not enabled"
+[ "$(r 'apt-config shell X Unattended-Upgrade::Automatic-Reboot' 2>/dev/null)" = "X='true'" ] && pass "unattended-upgrades auto-reboot on" || bad "unattended-upgrades auto-reboot off"
+
 local_tests
 
 before=$(r 'stat -c %Y /boot/uInitrd /boot/boot.scr')

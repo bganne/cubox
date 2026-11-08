@@ -1,0 +1,3 @@
+// Reboot when an upgrade requires it (e.g. kernel security update)
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";

@@ -15,3 +15,4 @@ less
 fdisk
 firmware-linux-free
 zstd
+unattended-upgrades
