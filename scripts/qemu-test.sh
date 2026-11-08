@@ -84,6 +84,8 @@ ip=$(r 'ip -4 -o addr show eth0' || true)
 
 r 'systemctl is-enabled apt-daily-upgrade.timer' >/dev/null 2>&1 && pass "apt-daily-upgrade.timer enabled" || bad "apt-daily-upgrade.timer not enabled"
 [ "$(r 'apt-config shell X Unattended-Upgrade::Automatic-Reboot' 2>/dev/null)" = "X='true'" ] && pass "unattended-upgrades auto-reboot on" || bad "unattended-upgrades auto-reboot off"
+r 'findmnt -no OPTIONS /' | grep -qw noatime && pass "/ mounted noatime" || bad "/ not mounted noatime"
+r '! ls /var/log/journal/*/*.journal >/dev/null 2>&1 && ls /run/log/journal/*/*.journal >/dev/null' && pass "journal is volatile" || bad "journal not volatile"
 
 local_tests
 

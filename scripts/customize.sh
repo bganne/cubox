@@ -19,8 +19,8 @@ if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
 fi
 
 cat > "$root/etc/fstab" <<EOT
-UUID=$ROOT_UUID	/	f2fs	defaults	0	1
-UUID=$BOOT_UUID	/boot	ext4	defaults	0	2
+UUID=$ROOT_UUID	/	f2fs	defaults,noatime	0	1
+UUID=$BOOT_UUID	/boot	ext4	defaults,noatime	0	2
 EOT
 if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -qx './root.hash'; then
     chroot "$root" usermod -p "$(ptar -xO ./root.hash)" root
