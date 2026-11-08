@@ -46,8 +46,8 @@ if grep -q '^LINUX_KERNEL_CMDLINE=' "$root/etc/default/flash-kernel"; then
 else
     echo "LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"" >> "$root/etc/default/flash-kernel"
 fi
+# also runs flash-kernel via /etc/initramfs/post-update.d/flash-kernel
 chroot "$root" update-initramfs -u -k all
-chroot "$root" flash-kernel
 
 # machine-id is regenerated on first boot
 : > "$root/etc/machine-id"

@@ -14,3 +14,4 @@ vim
 less
 fdisk
 firmware-linux-free
+zstd
