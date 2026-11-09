@@ -46,6 +46,10 @@ if grep -q '^LINUX_KERNEL_CMDLINE=' "$root/etc/default/flash-kernel"; then
 else
     echo "LINUX_KERNEL_CMDLINE=\"$KERNEL_CMDLINE\"" >> "$root/etc/default/flash-kernel"
 fi
+# DTB with the S/PDIF sound card, from the image's (newest) kernel; frozen: flash-kernel appends it
+# to every later kernel too
+ver=$(chroot "$root" sh -c 'linux-version list | linux-version sort | tail -1')
+scripts/spdif-dtb.sh "$root/usr/lib/linux-image-$ver/dove-cubox.dtb" "$root/etc/flash-kernel/dtbs/dove-cubox.dtb"
 # also runs flash-kernel via /etc/initramfs/post-update.d/flash-kernel
 chroot "$root" update-initramfs -u -k all
 

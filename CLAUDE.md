@@ -42,6 +42,8 @@ Build is rootless; only prereq and flash need root.
 - Config vars are exported by the Makefile to scripts; scripts read them from the environment.
 - `net.ifnames=0` keeps the NIC `eth0`. Default qemu test net is user-mode (guest DHCP 10.0.2.15, ssh via host port 2222).
 - Two cached stages: build/base.tar rebuilds when build/base.sha (SUITE/MIRROR/ARCH/KERNEL_CMDLINE, package lists,
-  build-base.sh, base-hooks.sh) changes; build/rootfs.tar when base.tar or build/rootfs.sha (config.mk, build-rootfs.sh,
+  build-base.sh, base-hooks.sh) changes; build/rootfs.tar when base.tar or build/rootfs.sha (config.mk, build-rootfs.sh, spdif-dtb.sh,
   customize.sh, overlay, private, local) changes. Anything needing no overlay/private/local input goes in base-hooks.sh.
   `make clean` also drops build/apt-cache. check.sh verifies the initramfs has the SD (sdhci-dove, mmc_block) and virtio drivers.
+- Internal S/PDIF: customize.sh runs `scripts/spdif-dtb.sh` (host fdtput) once on the image kernel's dove-cubox.dtb (adds a
+  simple-audio-card on audio1 DAI 1) into /etc/flash-kernel/dtbs/, frozen for later kernels; ALSA card `CuBoxSPDIF`.

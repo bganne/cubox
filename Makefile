@@ -24,7 +24,7 @@ build/base.sha: FORCE
 	$(call stamp,$@,echo '$(SUITE) $(MIRROR) $(ARCH) $(KERNEL_CMDLINE)'; \
 	  cat packages.txt $(wildcard local/packages.txt) scripts/build-base.sh scripts/base-hooks.sh)
 build/rootfs.sha: FORCE
-	$(call stamp,$@,cat config.mk scripts/build-rootfs.sh scripts/customize.sh; \
+	$(call stamp,$@,cat config.mk scripts/build-rootfs.sh scripts/customize.sh scripts/spdif-dtb.sh; \
 	  find overlay private local -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum)
 
 base: build/base.tar

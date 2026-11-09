@@ -38,14 +38,15 @@ info=$(dumpimage -l "$work/uImage" 2>&1 || true)
 chk "kernel load address 0x8000" sh -c "echo '$info' | grep -Eiq 'Load Address: 0*8000\$'"
 chk "kernel entry point 0x8000" sh -c "echo '$info' | grep -Eiq 'Entry Point: *0*8000\$'"
 
-dtb=$(tar -tf "$tar" | grep 'linux-image-6\.12.*/dove-cubox\.dtb$' | head -1)
-if [ -n "$dtb" ]; then
+dtb=./etc/flash-kernel/dtbs/dove-cubox.dtb
+if tar -tf "$tar" | grep -qx "$dtb"; then
     tar -xOf "$tar" "$dtb" > "$work/dove-cubox.dtb"
     n=$(stat -c %s "$work/dove-cubox.dtb")
     tail -c "$n" "$work/uImage" > "$work/uimage-tail"
-    chk "uImage ends with dove-cubox.dtb" cmp "$work/uimage-tail" "$work/dove-cubox.dtb"
+    chk "uImage ends with patched dove-cubox.dtb" cmp "$work/uimage-tail" "$work/dove-cubox.dtb"
+    chk "dove-cubox.dtb has the S/PDIF sound card" grep -aq 'simple-audio-card' "$work/dove-cubox.dtb"
 else
-    bad "dove-cubox.dtb not found in rootfs"
+    bad "patched $dtb not found in rootfs (scripts/spdif-dtb.sh)"
 fi
 
 chk "boot.scr has root=UUID=$ROOT_UUID" grep -aq "root=UUID=$ROOT_UUID" "$work/boot.scr"
