@@ -23,6 +23,7 @@ chk "p2 layout" sh -c "echo '$dump' | grep -q 'start= *$p2start, size= *$p2size,
 
 dd if="$img" of="$work/boot.img" bs=512 skip=2048 count=$p1size status=none
 ls=$(debugfs -R 'ls -p /' "$work/boot.img" 2>/dev/null)
+chk "p1 has no extent feature (old U-Boot)" sh -c "debugfs -R stats '$work/boot.img' 2>/dev/null | grep '^Filesystem features:' | grep -vqw extent"
 for f in boot.scr uImage uInitrd 'vmlinuz-6\.12' 'initrd\.img-6\.12'; do
     chk "p1 contains $f" sh -c "echo '$ls' | grep -q '/$f'"
 done

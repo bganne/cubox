@@ -1,6 +1,6 @@
 # CuBox v1 Debian 13 armhf image builder
 
-Rootless Makefile pipeline -> SD image (p1 ext4 /boot, p2 f2fs /). Kernel updates are handled
+Rootless Makefile pipeline -> SD image (p1 ext4 /boot without extents for the old U-Boot, p2 f2fs /). Kernel updates are handled
 on the device by flash-kernel (machine "SolidRun CuBox"). Design: ~/.claude/plans/i-have-an-old-fluttering-frost.md
 
 ## Branches

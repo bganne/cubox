@@ -22,7 +22,9 @@ mv "$work/rootfs/boot" "$work/bootfs"
 mkdir "$work/rootfs/boot"
 
 truncate -s $((p1size * 512)) "$work/boot.img"
-mke2fs -q -t ext4 -U "$BOOT_UUID" -d "$work/bootfs" "$work/boot.img"
+# No extents: the 2009 Marvell U-Boot cannot read files whose extent tree has depth > 0
+# (e.g. a fragmented uInitrd rewritten by flash-kernel). 64bit requires extents.
+mke2fs -q -t ext4 -O ^extent,^64bit -U "$BOOT_UUID" -d "$work/bootfs" "$work/boot.img"
 
 truncate -s $((p2size * 512)) "$work/root.img"
 mkfs.f2fs -q -f -U "$ROOT_UUID" "$work/root.img"
