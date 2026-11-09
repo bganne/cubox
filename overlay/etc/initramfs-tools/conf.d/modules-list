@@ -1,0 +1,4 @@
+# Only the modules listed in ../modules (plus their dependencies) instead of MODULES=most:
+# ~24 MB -> a few MB, faster for the old U-Boot to load and to unpack. MODULES=dep cannot be used:
+# the initramfs is built in a chroot whose /proc and /sys are the build host's.
+MODULES=list

@@ -84,7 +84,13 @@ ip=$(r 'ip -4 -o addr show eth0' || true)
 
 r 'systemctl is-enabled apt-daily-upgrade.timer' >/dev/null 2>&1 && pass "apt-daily-upgrade.timer enabled" || bad "apt-daily-upgrade.timer not enabled"
 [ "$(r 'apt-config shell X Unattended-Upgrade::Automatic-Reboot' 2>/dev/null)" = "X='true'" ] && pass "unattended-upgrades auto-reboot on" || bad "unattended-upgrades auto-reboot off"
-r 'findmnt -no OPTIONS /' | grep -qw noatime && pass "/ mounted noatime" || bad "/ not mounted noatime"
+opts=$(r 'findmnt -no OPTIONS /' || true)
+echo "$opts" | grep -qw noatime && pass "/ mounted noatime" || bad "/ not mounted noatime"
+echo "$opts" | grep -qw background_gc=off && pass "/ mounted background_gc=off" || bad "/ lacks background_gc=off: $opts"
+r 'grep -qw inode_checksum /sys/fs/f2fs/vda2/features && grep -qw sb_checksum /sys/fs/f2fs/vda2/features' \
+  && pass "f2fs has inode/sb checksums" || bad "f2fs lacks inode/sb checksums"
+r 'findmnt -no FSTYPE /boot' 2>/dev/null | grep -qx autofs && pass "/boot is an automount" || bad "/boot is not an automount"
+r '! systemctl is-active -q cron.service' && pass "no cron daemon" || bad "cron is running"
 r '! ls /var/log/journal/*/*.journal >/dev/null 2>&1 && ls /run/log/journal/*/*.journal >/dev/null' && pass "journal is volatile" || bad "journal not volatile"
 
 local_tests

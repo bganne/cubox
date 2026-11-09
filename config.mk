@@ -1,6 +1,7 @@
 # Build configuration (exported to the scripts by the Makefile)
 SUITE = trixie
 MIRROR = http://deb.debian.org/debian
+SECURITY_MIRROR = http://deb.debian.org/debian-security
 HOSTNAME = cubox
 TIMEZONE = Etc/UTC
 ARCH = armhf

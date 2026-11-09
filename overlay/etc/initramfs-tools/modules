@@ -1,1 +1,8 @@
+# Root filesystem drivers for the initramfs (MODULES=list, see conf.d/modules-list).
+# CuBox SD card (mmc_core and mmc_block are built in); pulls in sdhci-pltfm and sdhci
+sdhci-dove
+# qemu virt test (virtio_pci is built in)
+virtio_blk
+# root filesystem; its crc32 soft dependency is listed explicitly
 f2fs
+crc32_generic

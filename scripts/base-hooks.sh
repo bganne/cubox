@@ -21,6 +21,10 @@ customize)
     chroot "$root" locale-gen
     echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
     rm -f "$root/etc/apt/sources.list"
+    # cron (from the important variant) wakes up every minute; its jobs all have systemd timers
+    chroot "$root" dpkg --purge cron cron-daemon-common
+    # e2scrub only works on LVM; nothing writes to pstore on this board
+    chroot "$root" systemctl mask e2scrub_all.timer e2scrub_reap.service systemd-pstore.service
     ;;
 *)
     echo "unknown stage $stage" >&2; exit 1 ;;

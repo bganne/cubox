@@ -6,7 +6,7 @@ tar=$1
 out=$2
 work=build/mkimage.tmp
 rm -rf "$work"; mkdir -p "$work/rootfs"
-trap 'rm -rf "$work"' EXIT
+trap 'rm -rf "$work" "$out.tmp"' EXIT
 
 tar --numeric-owner --xattrs --exclude='./dev/*' -xpf "$tar" -C "$work/rootfs"
 
@@ -27,16 +27,22 @@ truncate -s $((p1size * 512)) "$work/boot.img"
 mke2fs -q -t ext4 -O ^extent,^64bit -U "$BOOT_UUID" -d "$work/bootfs" "$work/boot.img"
 
 truncate -s $((p2size * 512)) "$work/root.img"
-mkfs.f2fs -q -f -U "$ROOT_UUID" "$work/root.img"
+# Checksums detect torn inode/superblock writes after a power cut; lost_found for fsck.f2fs.
+# No flexible_inline_xattr: sload.f2fs 1.16 writes inodes inconsistent with it
+mkfs.f2fs -q -f -l root -O extra_attr,inode_checksum,sb_checksum,lost_found \
+    -U "$ROOT_UUID" "$work/root.img"
 sload.f2fs -P -f "$work/rootfs" "$work/root.img"
 
-rm -f "$out"
-truncate -s "$IMAGE_SIZE" "$out"
-sfdisk -q "$out" <<EOT
+# Written to $tmp, renamed at the end: an interrupted run leaves no complete-looking image
+tmp=$out.tmp
+rm -f "$tmp"
+truncate -s "$IMAGE_SIZE" "$tmp"
+sfdisk -q "$tmp" <<EOT
 label: dos
 start=$p1start, size=$p1size, type=83
 start=$p2start, size=$p2size, type=83
 EOT
-dd if="$work/boot.img" of="$out" bs=512 seek=$p1start conv=notrunc status=none
-dd if="$work/root.img" of="$out" bs=512 seek=$p2start conv=notrunc status=none
+dd if="$work/boot.img" of="$tmp" bs=512 seek=$p1start conv=notrunc status=none
+dd if="$work/root.img" of="$tmp" bs=512 seek=$p2start conv=notrunc status=none
+mv "$tmp" "$out"
 echo "image: $out"

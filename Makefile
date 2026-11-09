@@ -1,7 +1,12 @@
 include config.mk
 -include local/config.mk   # optional local overrides (not shipped on master)
-export SUITE MIRROR HOSTNAME TIMEZONE ARCH IMAGE_SIZE BOOT_SIZE BOOT_UUID ROOT_UUID KERNEL_CMDLINE IMAGE
+export SUITE MIRROR SECURITY_MIRROR HOSTNAME TIMEZONE ARCH IMAGE_SIZE BOOT_SIZE BOOT_UUID ROOT_UUID KERNEL_CMDLINE IMAGE
 export PATH := $(PATH):/usr/sbin:/sbin
+# pipefail: a failing stage of a pipeline (e.g. an unreadable file in the hashes) fails the recipe
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -ec
+# never leave a half-written target that looks up to date
+.DELETE_ON_ERROR:
 
 .PHONY: all prereq prereq-check image base rootfs check qemu test ssh flash clean FORCE
 all: image
@@ -25,7 +30,7 @@ build/base.sha: FORCE
 	  cat packages.txt $(wildcard local/packages.txt) scripts/build-base.sh scripts/base-hooks.sh)
 build/rootfs.sha: FORCE
 	$(call stamp,$@,cat config.mk scripts/build-rootfs.sh scripts/customize.sh scripts/spdif-dtb.sh; \
-	  find overlay private local -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum)
+	  find $(wildcard overlay private local) -type f -print0 | sort -z | xargs -0 -r sha256sum)
 
 base: build/base.tar
 build/base.tar: build/base.sha | prereq-check

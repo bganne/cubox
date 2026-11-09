@@ -10,6 +10,8 @@ Rootless Makefile pipeline building an SD image for the CuBox v1 (Dove, vendor U
     sudo make flash DEV=/dev/sdX
 
 Layout: p1 ext4 `/boot` (U-Boot reads `boot.scr`, `uImage`, `uInitrd` from its root), p2 f2fs `/`.
+On the device `/boot` is an automount (mounted only while dpkg/flash-kernel use it) and `/` is
+mounted with `background_gc=off` to limit SD card writes.
 Generic customizations live in `overlay/` (committed). The network uses DHCP on `eth0`, the
 default hostname is `cubox` and the timezone `Etc/UTC` (see `config.mk`).
 
@@ -31,7 +33,8 @@ separate branch rebased onto master. All files are optional:
 - `local/qemu-test.sh` sourced by `scripts/qemu-test.sh`: may set `QEMU_NIC`, `EXPECTED_FAILED_RE`
   and define `local_tests` (uses `r`, `pass`, `bad`)
 
-`local/` is part of the `build/inputs.sha` hash, so changes trigger a rebuild.
+`local/` is hashed into `build/rootfs.sha` (and `local/packages.txt` into `build/base.sha`), so
+changes trigger a rebuild.
 
 ## Kernel updates
 

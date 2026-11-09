@@ -1,0 +1,7 @@
+// Fewer SD card writes and less churn on the device
+// No translated package descriptions in /var/lib/apt/lists
+Acquire::Languages "none";
+// The source package cache (srcpkgcache.bin, tens of MB) is rewritten on every update and unused
+Dir::Cache::srcpkgcache "";
+// Recommends would pull in e.g. apparmor with a kernel upgrade; the image is built without them too
+APT::Install-Recommends "false";
