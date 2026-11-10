@@ -6,7 +6,8 @@ Rootless Makefile pipeline building an SD image for the CuBox v1 (Dove, vendor U
     make image                  # build/cubox-trixie.img
     make refresh                # rebuild the package base with today's updates; run before every flash
     make check                  # static checks on the image
-    make test                   # boot in qemu (TCG, slow) and run ssh assertions
+    make test                   # boot in qemu (TCG, slow) and run ssh assertions; TEST_APT=1 also
+                                # reports packages upgradable since the build
     make qemu                   # interactive serial boot (Ctrl-A X quits); `make ssh` from another terminal
     sudo make flash DEV=/dev/sdX
 
@@ -32,7 +33,7 @@ separate branch rebased onto master. All files are optional:
 - `local/customize.sh` sourced at the end of the customize stage (scripts/customize.sh) (`$root` = rootfs)
 - `local/check.sh` sourced by `scripts/check.sh` (`chk`, `bad`, `ok`, `$tar`)
 - `local/qemu-test.sh` sourced by `scripts/qemu-test.sh`: may set `QEMU_NIC`, `EXPECTED_FAILED_RE`
-  and define `local_tests` (uses `r`, `pass`, `bad`)
+  and define `local_tests` (uses `r`, `pass`, `bad`; must not access `/boot`, whose idle unmount is timed)
 
 `local/` is hashed into `build/rootfs.sha` (and `local/packages.txt` into `build/base.sha`), so
 changes trigger a rebuild.

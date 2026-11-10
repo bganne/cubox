@@ -29,7 +29,7 @@ settings in master files; extend the `local/` hooks instead.
 - `local/` is hashed into build/rootfs.sha (`local/packages.txt` also into build/base.sha)
 
 ## Targets
-`make prereq` (sudo, idempotent), `image`, `check`, `qemu` (interactive, Ctrl-A X), `test` (automated, slow: TCG), `ssh` (into running qemu, port 2222),
+`make prereq` (sudo, idempotent), `image`, `check`, `qemu` (interactive, Ctrl-A X), `test` (automated, slow: TCG; `TEST_APT=1` adds an apt freshness report), `ssh` (into running qemu, port 2222),
 `base`, `rootfs`, `refresh` (rebuild base.tar with current archive updates; run before every flash), `sudo make flash DEV=/dev/sdX`,
 `clean` (rm inside userns: build/ has subuid-owned files). Build is rootless; only prereq and flash need root.
 `make prereq`: HOST_PACKAGES in config.mk + subuid/subgid range for $USER. `prereq-check` verifies HOST_TOOLS.
@@ -43,7 +43,8 @@ settings in master files; extend the `local/` hooks instead.
 - Two cached stages: build/base.tar rebuilds when build/base.sha (SUITE/MIRROR/SECURITY_MIRROR/ARCH/KERNEL_CMDLINE, package lists,
   build-base.sh, base-hooks.sh) changes; build/rootfs.tar when base.tar or build/rootfs.sha (config.mk, build-rootfs.sh, spdif-dtb.sh,
   customize.sh, overlay, private, local incl. modes/symlinks) changes. Anything needing no overlay/private/local input goes in
-  base-hooks.sh. Base = SUITE + -updates + -security; archive state is not hashed (hence `make refresh`).
+  base-hooks.sh. Base = SUITE + -updates + -security; archive state is not hashed (hence `make refresh`). The base has
+  no initrd/U-Boot files (update-initramfs and flash-kernel stubbed by base-hooks.sh); customize.sh creates them.
   `make clean` also drops build/apt-cache. Makefile uses bash + pipefail and .DELETE_ON_ERROR.
 - Initramfs is MODULES=list (overlay/etc/initramfs-tools/{conf.d,modules}), hwdb.bin dropped by hooks/zz-prune-hwdb; check.sh verifies the SD/virtio/f2fs modules.
 - boot.scr: overlay/etc/flash-kernel/ubootenv.d/50-bak-fallback boots uImage.bak/uInitrd.bak when the CRCs fail (iminfo);

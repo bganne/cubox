@@ -76,10 +76,12 @@ fi
 # to every later kernel too
 ver=$(chroot "$root" sh -c 'linux-version list | linux-version sort | tail -1')
 scripts/spdif-dtb.sh "$root/usr/lib/linux-image-$ver/dove-cubox.dtb" "$root/etc/flash-kernel/dtbs/dove-cubox.dtb"
-# also runs flash-kernel via /etc/initramfs/post-update.d/flash-kernel
-chroot "$root" update-initramfs -u -k all
-# The .bak files left by these build-time runs are stale (~30 MB of /boot); on the device
-# flash-kernel recreates them as a consistent pair, which boot.scr falls back to (ubootenv.d)
+# The base has no initrd (see base-hooks.sh). Also runs flash-kernel (uImage, uInitrd, boot.scr)
+# via /etc/initramfs/post-update.d/flash-kernel
+if [ -e "$root/boot/initrd.img-$ver" ]; then op=-u; else op=-c; fi
+chroot "$root" update-initramfs "$op" -k "$ver"
+# No .bak files from build-time runs: on the device flash-kernel creates them as a consistent
+# pair, which boot.scr falls back to (ubootenv.d)
 rm -f "$root"/boot/*.bak "$root"/boot/dtbs/*/*.bak
 
 # machine-id is regenerated on first boot

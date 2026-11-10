@@ -5,6 +5,7 @@
 set -eu
 stage=$1
 root=$2
+stubs="/usr/sbin/update-initramfs /usr/sbin/flash-kernel"
 
 case $stage in
 essential)
@@ -15,8 +16,19 @@ essential)
     echo yes > "$root/etc/flash-kernel/ignore-efi"
     echo "flash-kernel flash-kernel/linux_cmdline string $KERNEL_CMDLINE" |
         chroot "$root" debconf-set-selections
+    # No initramfs/U-Boot files in the base: customize.sh builds them once with the final config
+    # (generating the MODULES=most initrd here under qemu-user only to replace it is slow).
+    # Stubbed out until the end of this stage; flash-kernel would fail without an initrd.
+    for t in $stubs; do
+        chroot "$root" dpkg-divert --quiet --local --rename --divert "$t.base" --add "$t"
+        printf '#!/bin/sh\nexit 0\n' > "$root$t"; chmod 755 "$root$t"
+    done
     ;;
 customize)
+    for t in $stubs; do
+        rm -f "$root$t"
+        chroot "$root" dpkg-divert --quiet --local --rename --divert "$t.base" --remove "$t"
+    done
     sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' "$root/etc/locale.gen"
     chroot "$root" locale-gen
     echo 'LANG=en_US.UTF-8' > "$root/etc/default/locale"
