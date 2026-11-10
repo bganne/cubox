@@ -29,7 +29,7 @@ settings in master files; extend the `local/` hooks instead.
 - `local/` is hashed into build/rootfs.sha (`local/packages.txt` also into build/base.sha)
 
 ## Targets
-`make prereq` (sudo, idempotent), `image`, `check`, `qemu` (interactive, Ctrl-A X), `test` (automated, slow: TCG; `TEST_APT=1` adds an apt freshness report), `ssh` (into running qemu, port 2222),
+`make prereq` (sudo, idempotent), `image`, `check`, `qemu` (interactive, Ctrl-A X), `test` (automated, slow: TCG; reports upgradable packages), `ssh` (into running qemu, port 2222),
 `base`, `rootfs`, `refresh` (rebuild base.tar with current archive updates; run before every flash), `sudo make flash DEV=/dev/sdX`,
 `clean` (rm inside userns: build/ has subuid-owned files). Build is rootless; only prereq and flash need root.
 `make prereq`: HOST_PACKAGES in config.mk + subuid/subgid range for $USER. `prereq-check` verifies HOST_TOOLS.

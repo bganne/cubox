@@ -1,7 +1,6 @@
 #!/bin/bash
 # qemu virt boot of build/cubox-trixie.img (via a qcow2 overlay; the image is never modified).
 # Usage: qemu-test.sh run|test|ssh [cmd...]   (env from Makefile: IMAGE, ROOT_UUID)
-# TEST_APT=1 (make test TEST_APT=1): also apt-get update in the guest and report upgradable packages.
 # SSH access: throwaway key in build/, injected via systemd credential ssh.authorized_keys.root.
 set -euo pipefail
 mode=${1:-test}; shift || true
@@ -79,8 +78,8 @@ echo "ssh up after $((SECONDS - t0))s"
 # last /boot access: the idle unmount (x-systemd.idle-timeout=60) is checked after the other
 # tests, which must not touch /boot (findmnt /boot would reset the timer: read /proc/mounts).
 bootfs() { r "awk '\$2 == \"/boot\" { print \$3 }' /proc/mounts"; }
-# apt-get update runs in the guest in the background, collected at the end
-[ "${TEST_APT:-}" != 1 ] || r 'systemd-run -q --unit=test-apt sh -c "{ if apt-get -qq update; then apt list --upgradable 2>/dev/null | grep -c / || true; else echo \"apt-get update failed\"; fi; } > /run/test-apt.tmp; mv /run/test-apt.tmp /run/test-apt"' \
+# Freshness: apt-get update runs in the guest in the background, collected at the end
+r 'systemd-run -q --unit=test-apt sh -c "{ if apt-get -qq update; then apt list --upgradable 2>/dev/null | grep -c / || true; else echo \"apt-get update failed\"; fi; } > /run/test-apt.tmp; mv /run/test-apt.tmp /run/test-apt"' \
   || bad "could not start apt-get update"
 
 before=$(r 'stat -c %Y /boot/uInitrd /boot/boot.scr')
@@ -135,12 +134,10 @@ for _ in $(seq 36); do
 done
 [ -n "$idle" ] && pass "/boot unmounted when idle" || bad "/boot still mounted after 180s idle"
 
-if [ "${TEST_APT:-}" = 1 ]; then
-  # informational: the archive moves daily; expect 0 right after 'make refresh'
-  apt=
-  for _ in $(seq 60); do apt=$(r 'cat /run/test-apt 2>/dev/null' || true); [ -z "$apt" ] || break; sleep 5; done
-  echo "INFO: upgradable packages after apt-get update: $(echo "$apt" | head -1 | grep . || echo unknown) ('make refresh' rebuilds the base)"
-fi
+# informational: the archive moves daily; expect 0 right after 'make refresh'
+apt=
+for _ in $(seq 60); do apt=$(r 'cat /run/test-apt 2>/dev/null' || true); [ -z "$apt" ] || break; sleep 5; done
+echo "INFO: upgradable packages after apt-get update: $(echo "$apt" | head -1 | grep . || echo unknown) ('make refresh' rebuilds the base)"
 
 r 'poweroff' || true
 for _ in $(seq 60); do kill -0 $QPID 2>/dev/null || break; sleep 2; done

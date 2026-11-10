@@ -6,8 +6,8 @@ Rootless Makefile pipeline building an SD image for the CuBox v1 (Dove, vendor U
     make image                  # build/cubox-trixie.img
     make refresh                # rebuild the package base with today's updates; run before every flash
     make check                  # static checks on the image
-    make test                   # boot in qemu (TCG, slow) and run ssh assertions; TEST_APT=1 also
-                                # reports packages upgradable since the build
+    make test                   # boot in qemu (TCG, slow) and run ssh assertions; also reports
+                                # packages upgradable since the build
     make qemu                   # interactive serial boot (Ctrl-A X quits); `make ssh` from another terminal
     sudo make flash DEV=/dev/sdX
 
