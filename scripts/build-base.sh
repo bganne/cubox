@@ -15,6 +15,8 @@ set --
 
 # Docs are not installed (copyright files are kept). Downloaded .debs are kept in build/apt-cache
 # across builds; mmdebstrap's cleanup then empties the cache and lists inside the tarball.
+# Updates and security are included so that a fresh image is current (customize.sh writes the
+# device's own apt sources).
 mmdebstrap --mode=unshare --arch="$ARCH" --variant=important --skip=essential/unlink "$@" \
     --dpkgopt='path-exclude=/usr/share/doc/*' \
     --dpkgopt='path-include=/usr/share/doc/*/copyright' \
@@ -26,4 +28,7 @@ mmdebstrap --mode=unshare --arch="$ARCH" --variant=important --skip=essential/un
     --essential-hook='scripts/base-hooks.sh essential "$1"' \
     --customize-hook='sync-out /var/cache/apt/archives build/apt-cache' \
     --customize-hook='scripts/base-hooks.sh customize "$1"' \
-    "$SUITE" "$out" "$MIRROR"
+    "$SUITE" "$out" \
+    "deb $MIRROR $SUITE main" \
+    "deb $MIRROR $SUITE-updates main" \
+    "deb $SECURITY_MIRROR $SUITE-security main"

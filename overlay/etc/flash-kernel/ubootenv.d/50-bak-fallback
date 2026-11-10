@@ -1,0 +1,27 @@
+# (overlay/etc/flash-kernel/ubootenv.d/50-bak-fallback, inserted at @@UBOOT_ENV_EXTRA@@)
+# flash-kernel replaces uImage/uInitrd in place and keeps the previous pair as .bak, so a power cut
+# during a kernel/initramfs update can leave a torn or missing file. Boot the first pair whose CRCs
+# check out (iminfo: bootm would reset the board on a bad initrd instead of returning), else fall
+# through to the stock commands below. Nested ifs only: the 2009.08 hush has no && or for.
+if ${fstype}load ${devtype} ${devnum}:${distro_bootpart} ${kernel_addr_r} ${prefix}uImage; then
+if ${fstype}load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} ${prefix}uInitrd; then
+if iminfo ${kernel_addr_r}; then
+if iminfo ${ramdisk_addr_r}; then
+echo "Booting Debian from ${devtype} ${devnum}:${distro_bootpart}..."
+bootm ${kernel_addr_r} ${ramdisk_addr_r}
+fi
+fi
+fi
+fi
+echo "uImage/uInitrd missing or corrupt, trying the previous pair (.bak)"
+if ${fstype}load ${devtype} ${devnum}:${distro_bootpart} ${kernel_addr_r} ${prefix}uImage.bak; then
+if ${fstype}load ${devtype} ${devnum}:${distro_bootpart} ${ramdisk_addr_r} ${prefix}uInitrd.bak; then
+if iminfo ${kernel_addr_r}; then
+if iminfo ${ramdisk_addr_r}; then
+echo "Booting Debian (.bak) from ${devtype} ${devnum}:${distro_bootpart}..."
+bootm ${kernel_addr_r} ${ramdisk_addr_r}
+fi
+fi
+fi
+fi
+echo "no bootable uImage/uInitrd pair"

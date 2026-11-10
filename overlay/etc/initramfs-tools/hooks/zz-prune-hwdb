@@ -1,0 +1,6 @@
+#!/bin/sh
+# udev's hwdb.bin (13.5 MB, ~2 MB compressed: a quarter of the initrd) is not needed to find the
+# root filesystem; dropping it shortens loading the initrd from SD in U-Boot and unpacking it.
+PREREQ=""
+case $1 in prereqs) echo "$PREREQ"; exit 0;; esac
+rm -f "$DESTDIR/usr/lib/udev/hwdb.bin" "$DESTDIR/etc/udev/hwdb.bin"

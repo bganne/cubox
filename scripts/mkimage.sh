@@ -10,11 +10,13 @@ trap 'rm -rf "$work" "$out.tmp"' EXIT
 
 tar --numeric-owner --xattrs --exclude='./dev/*' -xpf "$tar" -C "$work/rootfs"
 
-# Layout: p1 ext4 /boot at sector 2048, p2 f2fs root takes the rest
+# Layout: p1 ext4 /boot at sector 2048, at least BOOT_SIZE, ending on a 4 MiB boundary so that
+# p2 (f2fs root, the rest) is aligned to the SD card's allocation units and f2fs's 2 MiB segments.
 total=$((IMAGE_SIZE / 512))
 p1start=2048
-p1size=$(( ${BOOT_SIZE%M} * 2048 ))
-p2start=$((p1start + p1size))
+align=8192
+p2start=$(( (p1start + ${BOOT_SIZE%M} * 2048 + align - 1) / align * align ))
+p1size=$((p2start - p1start))
 p2size=$((total - p2start))
 
 # /boot goes to p1; p2 gets an empty mount point
@@ -24,7 +26,8 @@ mkdir "$work/rootfs/boot"
 truncate -s $((p1size * 512)) "$work/boot.img"
 # No extents: the 2009 Marvell U-Boot cannot read files whose extent tree has depth > 0
 # (e.g. a fragmented uInitrd rewritten by flash-kernel). 64bit requires extents.
-mke2fs -q -t ext4 -O ^extent,^64bit -U "$BOOT_UUID" -d "$work/bootfs" "$work/boot.img"
+# -m 0: no blocks reserved for root, only root writes there anyway.
+mke2fs -q -t ext4 -m 0 -O ^extent,^64bit -U "$BOOT_UUID" -d "$work/bootfs" "$work/boot.img"
 
 truncate -s $((p2size * 512)) "$work/root.img"
 # Checksums detect torn inode/superblock writes after a power cut; lost_found for fsck.f2fs.

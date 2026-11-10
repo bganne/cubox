@@ -17,7 +17,7 @@ settings in master files; extend the `local/` hooks instead.
   `scripts/customize.sh` (overlay, fstab, apt sources, passwords, local hook, initramfs, flash-kernel) -> build/rootfs.tar.
   private/ is uploaded as a tarball ($PRIVATE_TAR, deleted at the end), base-hooks.sh purges cron
 - `scripts/mkimage.sh` run under `unshare --map-auto --map-root-user`: partitions + mke2fs/mkfs.f2fs/sload.f2fs
-- `scripts/check.sh` static image checks; `scripts/prereq.sh`; `scripts/flash.sh`
+- `scripts/check.sh` static image checks; `scripts/prereq.sh`; `scripts/flash.sh`; `scripts/diag.sh` on-device diagnostics (diag-*.txt gitignored)
 - `scripts/qemu-test.sh run|test|ssh`: qemu virt boot of a qcow2 overlay (build/qemu/), ssh via systemd credential key
 - `overlay/` committed files copied into the rootfs; `private/` gitignored secrets overlay (optional)
 
@@ -30,10 +30,8 @@ settings in master files; extend the `local/` hooks instead.
 
 ## Targets
 `make prereq` (sudo, idempotent), `image`, `check`, `qemu` (interactive, Ctrl-A X), `test` (automated, slow: TCG), `ssh` (into running qemu, port 2222),
-`base`, `rootfs`, `sudo make flash DEV=/dev/sdX`, `clean` (rm inside userns: build/ has subuid-owned files).
-Build is rootless; only prereq and flash need root.
-
-## Host prerequisites
+`base`, `rootfs`, `refresh` (rebuild base.tar with current archive updates; run before every flash), `sudo make flash DEV=/dev/sdX`,
+`clean` (rm inside userns: build/ has subuid-owned files). Build is rootless; only prereq and flash need root.
 `make prereq`: HOST_PACKAGES in config.mk + subuid/subgid range for $USER. `prereq-check` verifies HOST_TOOLS.
 
 ## private/ contents (gitignored, optional, never print)
@@ -42,11 +40,14 @@ Build is rootless; only prereq and flash need root.
 ## Notes
 - Config vars are exported by the Makefile to scripts; scripts read them from the environment.
 - `net.ifnames=0` keeps the NIC `eth0`. Default qemu test net is user-mode (guest DHCP 10.0.2.15, ssh via host port 2222).
-- Two cached stages: build/base.tar rebuilds when build/base.sha (SUITE/MIRROR/ARCH/KERNEL_CMDLINE, package lists,
+- Two cached stages: build/base.tar rebuilds when build/base.sha (SUITE/MIRROR/SECURITY_MIRROR/ARCH/KERNEL_CMDLINE, package lists,
   build-base.sh, base-hooks.sh) changes; build/rootfs.tar when base.tar or build/rootfs.sha (config.mk, build-rootfs.sh, spdif-dtb.sh,
-  customize.sh, overlay, private, local) changes. Anything needing no overlay/private/local input goes in base-hooks.sh.
+  customize.sh, overlay, private, local incl. modes/symlinks) changes. Anything needing no overlay/private/local input goes in
+  base-hooks.sh. Base = SUITE + -updates + -security; archive state is not hashed (hence `make refresh`).
   `make clean` also drops build/apt-cache. Makefile uses bash + pipefail and .DELETE_ON_ERROR.
-- Initramfs is MODULES=list (overlay/etc/initramfs-tools/{conf.d,modules}); check.sh verifies the SD/virtio/f2fs modules.
-- fstab: / f2fs `background_gc=off`; /boot automount (noauto,nofail,idle-timeout). f2fs made with inode/sb checksums.
+- Initramfs is MODULES=list (overlay/etc/initramfs-tools/{conf.d,modules}), hwdb.bin dropped by hooks/zz-prune-hwdb; check.sh verifies the SD/virtio/f2fs modules.
+- boot.scr: overlay/etc/flash-kernel/ubootenv.d/50-bak-fallback boots uImage.bak/uInitrd.bak when the CRCs fail (iminfo);
+  customize.sh deletes the build-time .bak files. apt-daily-upgrade.service runs Nice=19/idle IO (lowprio.conf).
+- fstab: / f2fs `background_gc=off,nodiscard` (weekly fstrim.timer); /boot automount (noauto,nofail,idle-timeout). f2fs made with inode/sb checksums.
 - Internal S/PDIF: customize.sh runs `scripts/spdif-dtb.sh` (host fdtput) once on the image kernel's dove-cubox.dtb (adds a
   simple-audio-card on audio1 DAI 1) into /etc/flash-kernel/dtbs/, frozen for later kernels; ALSA card `CuBoxSPDIF`.

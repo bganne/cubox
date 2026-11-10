@@ -87,9 +87,13 @@ r 'systemctl is-enabled apt-daily-upgrade.timer' >/dev/null 2>&1 && pass "apt-da
 opts=$(r 'findmnt -no OPTIONS /' || true)
 echo "$opts" | grep -qw noatime && pass "/ mounted noatime" || bad "/ not mounted noatime"
 echo "$opts" | grep -qw background_gc=off && pass "/ mounted background_gc=off" || bad "/ lacks background_gc=off: $opts"
+echo "$opts" | grep -qw discard && bad "/ mounted with online discard: $opts" || pass "/ mounted without online discard"
 r 'grep -qw inode_checksum /sys/fs/f2fs/vda2/features && grep -qw sb_checksum /sys/fs/f2fs/vda2/features' \
   && pass "f2fs has inode/sb checksums" || bad "f2fs lacks inode/sb checksums"
 r 'findmnt -no FSTYPE /boot' 2>/dev/null | grep -qx autofs && pass "/boot is an automount" || bad "/boot is not an automount"
+prio=$(r 'systemctl show -p Nice -p IOSchedulingClass apt-daily-upgrade.service' || true)
+echo "$prio" | grep -qx 'Nice=19' && echo "$prio" | grep -Eqx 'IOSchedulingClass=(3|idle)' \
+  && pass "apt-daily-upgrade runs at low CPU/IO priority" || bad "apt-daily-upgrade lowprio drop-in not applied"
 r '! systemctl is-active -q cron.service' && pass "no cron daemon" || bad "cron is running"
 r '! ls /var/log/journal/*/*.journal >/dev/null 2>&1 && ls /run/log/journal/*/*.journal >/dev/null' && pass "journal is volatile" || bad "journal not volatile"
 
@@ -102,9 +106,26 @@ if r 'update-initramfs -u' >"$B/uirfs.log" 2>&1; then
   [ "$(echo "$before" | sed -n 1p)" != "$(echo "$after" | sed -n 1p)" ] && pass "uInitrd mtime changed" || bad "uInitrd mtime unchanged"
   [ "$(echo "$before" | sed -n 2p)" != "$(echo "$after" | sed -n 2p)" ] && pass "boot.scr mtime changed" || bad "boot.scr mtime unchanged"
   r 'mkimage -l /boot/uImage' >/dev/null && pass "mkimage -l /boot/uImage valid" || bad "uImage invalid"
+  # boot.scr falls back to this pair (overlay/etc/flash-kernel/ubootenv.d/50-bak-fallback)
+  r 'mkimage -l /boot/uImage.bak && mkimage -l /boot/uInitrd.bak' >/dev/null \
+    && pass "uImage.bak/uInitrd.bak fallback pair valid" || bad "uImage.bak/uInitrd.bak missing or invalid"
 else
   bad "update-initramfs -u failed"; tail -20 "$B/uirfs.log"
 fi
+
+# /boot is unmounted again after x-systemd.idle-timeout=60 (only the autofs stays). Poll
+# /proc/mounts: findmnt /boot would touch the mount point and reset the idle timer.
+r 'ls /boot >/dev/null' || true
+idle=
+for _ in $(seq 18); do
+  sleep 10
+  if m=$(r "awk '\$2 == \"/boot\" && \$3 != \"autofs\"' /proc/mounts" 2>/dev/null) && [ -z "$m" ]; then idle=1; break; fi
+done
+[ -n "$idle" ] && pass "/boot unmounted when idle" || bad "/boot still mounted after 180s idle"
+
+# Freshness (informational: the archive moves daily; expect nothing right after 'make refresh')
+upg=$(r 'apt-get -qq update && apt list --upgradable 2>/dev/null | grep -c /' 2>/dev/null || true)
+echo "INFO: upgradable packages after apt-get update: ${upg:-unknown} ('make refresh' rebuilds the base)"
 
 r 'poweroff' || true
 for _ in $(seq 60); do kill -0 $QPID 2>/dev/null || break; sleep 2; done

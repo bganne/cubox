@@ -23,11 +23,13 @@ if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
 fi
 
 cat > "$root/etc/fstab" <<EOT
-UUID=$ROOT_UUID	/	f2fs	defaults,noatime,background_gc=off	0	1
+UUID=$ROOT_UUID	/	f2fs	defaults,noatime,background_gc=off,nodiscard	0	1
 UUID=$BOOT_UUID	/boot	ext4	noatime,noauto,nofail,x-systemd.automount,x-systemd.idle-timeout=60	0	2
 EOT
 # background_gc=off: on a mostly idle box f2fs GC kept compacting segments (~90% of all SD writes);
 # foreground GC/SSR still reclaim space when free segments run low.
+# nodiscard: no erases issued at each checkpoint (slow and stalling on old SD cards);
+# the weekly fstrim.timer trims in one batch instead.
 # /boot is only touched by dpkg/flash-kernel: mounted on demand, so it is clean (unmounted) at a
 # power cut, a failed fsck cannot block the boot, and it is off the boot critical chain.
 
@@ -53,6 +55,7 @@ fi
 for k in "$root"/etc/ssh/ssh_host_*_key; do [ ! -e "$k" ] || chmod 600 "$k"; done
 
 echo "$HOSTNAME" > "$root/etc/hostname"
+printf '127.0.1.1\t%s\n' "$HOSTNAME" >> "$root/etc/hosts"
 chroot "$root" systemctl enable serial-getty@ttyS0.service
 
 # Timezone (locale is set in the base, see base-hooks.sh)
@@ -75,6 +78,9 @@ ver=$(chroot "$root" sh -c 'linux-version list | linux-version sort | tail -1')
 scripts/spdif-dtb.sh "$root/usr/lib/linux-image-$ver/dove-cubox.dtb" "$root/etc/flash-kernel/dtbs/dove-cubox.dtb"
 # also runs flash-kernel via /etc/initramfs/post-update.d/flash-kernel
 chroot "$root" update-initramfs -u -k all
+# The .bak files left by these build-time runs are stale (~30 MB of /boot); on the device
+# flash-kernel recreates them as a consistent pair, which boot.scr falls back to (ubootenv.d)
+rm -f "$root"/boot/*.bak "$root"/boot/dtbs/*/*.bak
 
 # machine-id is regenerated on first boot
 : > "$root/etc/machine-id"
