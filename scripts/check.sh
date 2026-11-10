@@ -80,6 +80,7 @@ done
 tar -xOf "$tar" ./etc/fstab > "$work/fstab"
 chk "fstab: / has background_gc=off" grep -Eq '^UUID=[^ 	]+[ 	]+/[ 	].*background_gc=off' "$work/fstab"
 chk "fstab: / has nodiscard" grep -Eq '^UUID=[^ 	]+[ 	]+/[ 	].*nodiscard' "$work/fstab"
+chk "fstab: / has fsck pass 0" grep -Eq '^UUID=[^ 	]+[ 	]+/[ 	].*[ 	]0[ 	]+0$' "$work/fstab"
 chk "fstrim.timer enabled" sh -c "tar -tf '$tar' | grep -q '^./etc/systemd/system/timers.target.wants/fstrim.timer$'"
 chk "fstab: /boot is an automount" grep -Eq '^UUID=[^ 	]+[ 	]+/boot[ 	].*noauto,nofail,x-systemd\.automount' "$work/fstab"
 chk "apt sources use SUITE=$SUITE" sh -c "tar -xOf '$tar' ./etc/apt/sources.list.d/debian.sources | grep -q '^Suites: $SUITE-security'"

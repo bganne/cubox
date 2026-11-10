@@ -3,5 +3,7 @@
 Acquire::Languages "none";
 // The source package cache (srcpkgcache.bin, tens of MB) is rewritten on every update and unused
 Dir::Cache::srcpkgcache "";
+// Same for the binary package cache (pkgcache.bin, ~40 MB): built in memory at each apt run instead
+Dir::Cache::pkgcache "";
 // Recommends would pull in e.g. apparmor with a kernel upgrade; the image is built without them too
 APT::Install-Recommends "false";

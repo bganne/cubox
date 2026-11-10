@@ -116,7 +116,7 @@ run 'ls /etc/cron.d /etc/cron.daily /etc/cron.hourly'
 
 sec "apt"
 run 'du -sh /var/lib/apt/lists /var/cache/apt /var/lib/dpkg'
-run "apt-config dump | grep -iE 'recommends|suggests|languages|gzipindexes|periodic|unattended'"
+run "apt-config dump | grep -iE 'recommends|suggests|languages|gzipindexes|pkgcache|periodic|unattended'"
 run "dpkg-query -Wf '\${Installed-Size}\\t\${Package}\\n' | sort -n | tail -25"
 run "dpkg-query -Wf '\${Installed-Size}\\n' | awk '{s+=\$1} END {printf \"total installed: %d MiB\\n\", s/1024}'"
 llvm=$(dpkg-query -Wf '${Package}\n' 'libllvm*' 2>/dev/null | head -1)

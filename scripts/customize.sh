@@ -23,13 +23,15 @@ if [ -n "$PRIVATE_TAR" ] && ptar -t | grep -q '^\./etc/'; then
 fi
 
 cat > "$root/etc/fstab" <<EOT
-UUID=$ROOT_UUID	/	f2fs	defaults,noatime,background_gc=off,nodiscard	0	1
+UUID=$ROOT_UUID	/	f2fs	defaults,noatime,background_gc=off,nodiscard	0	0
 UUID=$BOOT_UUID	/boot	ext4	noatime,noauto,nofail,x-systemd.automount,x-systemd.idle-timeout=60	0	2
 EOT
 # background_gc=off: on a mostly idle box f2fs GC kept compacting segments (~90% of all SD writes);
 # foreground GC/SSR still reclaim space when free segments run low.
 # nodiscard: no erases issued at each checkpoint (slow and stalling on old SD cards);
 # the weekly fstrim.timer trims in one batch instead.
+# fsck pass 0 for /: fsck.f2fs refuses a mounted root ("In use by the system", exit 8) and f2fs
+# rolls back to its last checkpoint at mount anyway.
 # /boot is only touched by dpkg/flash-kernel: mounted on demand, so it is clean (unmounted) at a
 # power cut, a failed fsck cannot block the boot, and it is off the boot critical chain.
 
