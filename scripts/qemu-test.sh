@@ -1,10 +1,10 @@
 #!/bin/bash
 # qemu virt boot of build/cubox-trixie.img (via a qcow2 overlay; the image is never modified).
-# Usage: qemu-test.sh run|test|ssh [cmd...]   (env from Makefile: IMAGE, ROOT_UUID)
+# Usage: qemu-test.sh run|test|ssh [cmd...]   (env from Makefile: IMAGE, ROOT_UUID, KERNEL_CMDLINE)
 # SSH access: throwaway key in build/, injected via systemd credential ssh.authorized_keys.root.
 set -euo pipefail
 mode=${1:-test}; shift || true
-: "${IMAGE:?}" "${ROOT_UUID:?}"
+: "${IMAGE:?}" "${ROOT_UUID:?}" "${KERNEL_CMDLINE:?}"
 B=build/qemu; mkdir -p "$B"
 KEY=$B/id_ed25519
 SSH=(ssh -i "$KEY" -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -45,7 +45,7 @@ cred=$(base64 -w0 < "$KEY.pub")
 # single vCPU: -smp 4 with multi-threaded TCG boots this armv7 guest 2x slower (112s vs 52s to ssh)
 qemu_cmd=(qemu-system-arm -M virt,highmem=off -cpu cortex-a15 -m 1G -nographic
   -kernel "$B/vmlinuz" -initrd "$B/initrd.img"
-  -append "root=UUID=$ROOT_UUID rootfstype=f2fs rootwait console=ttyAMA0 net.ifnames=0 systemd.set_credential_binary=ssh.authorized_keys.root:$cred"
+  -append "${KERNEL_CMDLINE//quiet/} console=ttyAMA0 systemd.set_credential_binary=ssh.authorized_keys.root:$cred"
   -drive "if=virtio,format=qcow2,file=$B/overlay.qcow2"
   -nic "$QEMU_NIC")
 
@@ -121,6 +121,8 @@ prio=$(r 'systemctl show -p Nice -p IOSchedulingClass apt-daily-upgrade.service'
 echo "$prio" | grep -qx 'Nice=19' && echo "$prio" | grep -Eqx 'IOSchedulingClass=(3|idle)' \
   && pass "apt-daily-upgrade runs at low CPU/IO priority" || bad "apt-daily-upgrade lowprio drop-in not applied"
 r '! systemctl is-active -q cron.service' && pass "no cron daemon" || bad "cron is running"
+v=$(r 'echo $(sysctl -n net.ipv4.tcp_congestion_control net.ipv4.tcp_ecn net.ipv4.tcp_fastopen net.ipv4.conf.all.accept_redirects net.core.default_qdisc)' || true)
+[ "$v" = "bbr 1 3 0 fq_codel" ] && pass "sysctl: bbr, ecn, fastopen, no redirects, fq_codel" || bad "sysctl (60-cubox.conf) not applied: '$v'"
 r '! ls /var/log/journal/*/*.journal >/dev/null 2>&1 && ls /run/log/journal/*/*.journal >/dev/null' && pass "journal is volatile" || bad "journal not volatile"
 
 # must not touch /boot

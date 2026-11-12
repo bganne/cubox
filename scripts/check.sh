@@ -74,7 +74,8 @@ chk "initramfs has no udev hwdb.bin (hooks/zz-prune-hwdb)" sh -c "! grep -q 'hwd
 chk "no files owned by nobody" sh -c "! tar -tvf '$tar' | awk '\$2 ~ /^65534\\// {print; f=1} END {exit !f}'"
 for f in etc/fstab etc/flash-kernel/machine etc/apt/apt.conf.d/20auto-upgrades usr/bin/unattended-upgrade \
          usr/lib/systemd/system-shutdown/cubox-gpu-power etc/systemd/system.conf.d/watchdog.conf \
-         etc/systemd/system/apt-daily-upgrade.service.d/lowprio.conf etc/flash-kernel/ubootenv.d/50-bak-fallback; do
+         etc/systemd/system/apt-daily-upgrade.service.d/lowprio.conf etc/flash-kernel/ubootenv.d/50-bak-fallback \
+         etc/sysctl.d/60-cubox.conf etc/modules-load.d/bbr.conf; do
     chk "rootfs has $f" sh -c "tar -tf '$tar' | grep -qx './$f'"
 done
 tar -xOf "$tar" ./etc/fstab > "$work/fstab"

@@ -39,7 +39,7 @@ settings in master files; extend the `local/` hooks instead.
 
 ## Notes
 - Config vars are exported by the Makefile to scripts; scripts read them from the environment.
-- `net.ifnames=0` keeps the NIC `eth0`. Default qemu test net is user-mode (guest DHCP 10.0.2.15, ssh via host port 2222).
+- `net.ifnames=0` keeps the NIC `eth0`. qemu boots with KERNEL_CMDLINE (minus quiet). TCP/redirect sysctls: overlay/etc/sysctl.d/60-cubox.conf (BBR via modules-load.d). Default qemu test net is user-mode (guest DHCP 10.0.2.15, ssh via host port 2222).
 - Two cached stages: build/base.tar rebuilds when build/base.sha (SUITE/MIRROR/SECURITY_MIRROR/ARCH/KERNEL_CMDLINE, package lists,
   build-base.sh, base-hooks.sh) changes; build/rootfs.tar when base.tar or build/rootfs.sha (config.mk, build-rootfs.sh, spdif-dtb.sh,
   customize.sh, overlay, private, local incl. modes/symlinks) changes. Anything needing no overlay/private/local input goes in
